@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>AgriTech App</title>
+  <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Welcome to HarvestPro</h1>
+  </header>
+  
+  <main>
+    <section id="produce-list">
+      <h2>My Produce</h2>
+      <div class="search-bar">
+        <input type="text" id="search-input" placeholder="Search for a product">
+        <button id="search-button">Search</button>
+      </div>
+      <ul id="produce-items"></ul>
+      <p id="search-message"></p>
+    </section>
+
+    <section id="add-produce">
+      <h2>Add Produce</h2>
+      <form id="add-produce-form" method="POST" action="/api/produce">
+        <div class="input-group">
+          <label for="produce-name">Produce Name:</label>
+          <input type="text" id="produce-name" name="produce_name" placeholder="Enter produce name" required>
+        </div>
+        <div class="input-group">
+          <label for="produce-quantity">Quantity:</label>
+          <input type="number" id="produce-quantity" name="produce_quantity" placeholder="Enter quantity" required>
+        </div>
+        <button id="add-button" type="submit">Add</button>
+      </form>
+    </section>
+  </main>
+
+  <script>
+    // Get the necessary elements from the DOM
+    const produceItems = document.getElementById('produce-items');
+    const searchInput = document.getElementById('search-input');
+    const searchButton = document.getElementById('search-button');
+    const searchMessage = document.getElementById('search-message');
+    const addForm = document.getElementById('add-produce-form');
+
+    // Function to remove an item from the list
+    function removeItem(event) {
+      const listItem = event.target.parentNode;
+      listItem.parentNode.removeChild(listItem);
+    }
+
+    // Function to display produce items in the list
+    function displayProduceItems(produce) {
+      produceItems.innerHTML = '';
+      produce.forEach(item => {
+        const li = document.createElement('li');
+        li.textContent = `${item.name} - Quantity: ${item.quantity}`;
+        
+        const removeButton = document.createElement('button');
+        removeButton.innerText = 'Remove';
+        removeButton.addEventListener('click', removeItem);
+        
+        li.appendChild(removeButton);
+        produceItems.appendChild(li);
+      });
+    }
+
+    // Function to search for a product
+    function searchProduct(event) {
+      event.preventDefault();
+      
+      const searchTerm = searchInput.value.toLowerCase();
+      
+      fetch('/api/produce/search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ search_term: searchTerm })
+      })
+        .then(response => response.json())
+        .then(data => {
+          if (data.length > 0) {
+            searchMessage.textContent = '';
+            displayProduceItems(data);
+          } else {
+            produceItems.innerHTML = '';
+            searchMessage.textContent = 'Product not available in stock.';
+          }
+        })
+        .catch(error => {
+          console.error(error);
+          produceItems.innerHTML = '';
+          searchMessage.textContent = 'Failed to search for produce.';
+        });
+    }
+
+    // Event listener for the search button
+    searchButton.addEventListener('click', searchProduct);
+
+    // Event listener for adding produce
+    addForm.addEventListener('submit', event => {
+      event.preventDefault();
+
+      const produceName = document.getElementById('produce-name').value;
+      const produceQuantity = document.getElementById('produce-quantity').value;
+
+      if (produceName && produceQuantity) {
+        fetch('/api/produce', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: new URLSearchParams({
+            produce_name: produceName,
+            produce_quantity: produceQuantity
+          })
+        })
+          .then(response => response.json())
+          .then(data => {
+            console.log(data);
+            // Clear the input fields
+            document.getElementById('produce-name').value = '';
+            document.getElementById('produce-quantity').value = '';
+
+            // Fetch the updated produce data
+            fetch('/api/produce')
+              .then(response => response.json())
+              .then(produceData => {
+                displayProduceItems(produceData);
+              })
+              .catch(error => {
+                console.error(error);
+                produceItems.innerHTML = '';
+                searchMessage.textContent = 'Failed to fetch produce data.';
+              });
+          })
+          .catch(error => {
+            console.error(error);
+            searchMessage.textContent = 'Failed to add produce.';
+          });
+      }
+    });
+
+    // Fetch the produce data and display it initially
+    fetch('/api/produce')
+      .then(response => response.json())
+      .then(produceData => {
+        displayProduceItems(produceData);
+      })
+      .catch(error => {
+        console.error(error);
+        produceItems.innerHTML = '';
+        searchMessage.textContent = 'Failed to fetch produce data.';
+      });
+  </script>
+</body>
+</html>
